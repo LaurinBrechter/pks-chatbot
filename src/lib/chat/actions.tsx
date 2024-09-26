@@ -14,6 +14,7 @@ import {
   createStreamableValue,
 } from "ai/rsc";
 import { openai } from "@ai-sdk/openai";
+import { saveChat } from "@/app/actions";
 
 export type Message = {
   role: "user" | "assistant" | "system" | "function" | "data" | "tool";

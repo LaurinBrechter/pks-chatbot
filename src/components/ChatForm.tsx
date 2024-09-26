@@ -1,40 +1,89 @@
-'use client'
+"use client";
 
-import * as React from 'react'
+import * as React from "react";
 
-import { Button } from "./ui/button"
-import { Textarea } from "./ui/textarea"
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip"
-import { IconArrowElbow, IconPlus } from '@/components/ui/icons'
+import { Button } from "./ui/button";
+import { Textarea } from "./ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { IconArrowElbow, IconPlus } from "@/components/ui/icons";
+import { toast } from 'sonner'
+import { useActions, useUIState } from "ai/rsc";
+import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
+import { type AI } from "@/lib/chat/actions";
+import { UserMessage } from "./stocks/message";
+import { nanoid } from "@/lib/utils";
 
-import { useActions, useUIState } from 'ai/rsc'
-import { useEnterSubmit } from '@/lib/hooks/use-enter-submit'
-import { type AI } from '@/lib/chat/actions'
+export function ChatForm({
+  input,
+  setInput,
+}: {
+  input: string;
+  setInput: (value: string) => void;
+}) {
+  const { formRef, onKeyDown } = useEnterSubmit();
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
+  const { submitUserMessage, describeImage } = useActions();
+  const [_, setMessages] = useUIState<typeof AI>();
 
-export function ChatForm(
-   { input,
-    setInput
-  }: {
-    input: string
-    setInput: (value: string) => void
-  }) {
-
-    const { formRef, onKeyDown } = useEnterSubmit()
-    const inputRef = React.useRef<HTMLTextAreaElement>(null)
-    const { submitUserMessage, describeImage } = useActions()
-    const [_, setMessages] = useUIState<typeof AI>()
-
-
-    return <div className="relative flex max-h-60 w-full grow flex-col overflow-hidden bg-zinc-100 px-12 sm:rounded-full sm:px-12">
-        {/* <Tooltip>
+  return (
+    <div className="relative flex max-h-60 w-full grow flex-col overflow-hidden bg-zinc-100 px-12 sm:rounded-full sm:px-12">
+      {/* <Tooltip>
           <TooltipTrigger asChild> */}
+      <form
+        ref={formRef}
+        onSubmit={async (e: any) => {
+          e.preventDefault();
+
+          // Blur focus on mobile
+          if (window.innerWidth < 600) {
+            e.target["message"]?.blur();
+          }
+
+          const value = input.trim();
+          setInput("");
+          if (!value) return;
+
+          // Optimistically add user message UI
+          setMessages((currentMessages) => [
+            ...currentMessages,
+            {
+              id: nanoid(),
+              display: <UserMessage>{value}</UserMessage>,
+            },
+          ]);
+
+          try {
+            // Submit and get response message
+            const responseMessage = await submitUserMessage(value);
+            setMessages((currentMessages) => [
+              ...currentMessages,
+              responseMessage,
+            ]);
+          } catch {
+            toast(
+              <div className="text-red-600">
+                You have reached your message limit! Please try again later, or{" "}
+                <a
+                  className="underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  href="https://vercel.com/templates/next.js/gemini-ai-chatbot"
+                >
+                  deploy your own version
+                </a>
+                .
+              </div>
+            );
+          }
+        }}
+      >
         <Button
           variant="outline"
           size="icon"
           className="absolute left-4 top-[14px] size-8 rounded-full bg-background p-0 sm:left-4"
-        //   onClick={() => {
-        //     fileRef.current?.click()
-        //   }}
+          //   onClick={() => {
+          //     fileRef.current?.click()
+          //   }}
         >
           <IconPlus />
           <span className="sr-only">New Chat</span>
@@ -55,7 +104,7 @@ export function ChatForm(
           name="message"
           rows={1}
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={(e) => setInput(e.target.value)}
         />
         <div className="absolute right-4 top-[13px] sm:right-4">
           <Tooltip>
@@ -63,7 +112,7 @@ export function ChatForm(
               <Button
                 type="submit"
                 size="icon"
-                disabled={input === ''}
+                disabled={input === ""}
                 className="bg-transparent shadow-none text-zinc-950 rounded-full hover:bg-zinc-200"
               >
                 <IconArrowElbow />
@@ -73,5 +122,7 @@ export function ChatForm(
             <TooltipContent>Send message</TooltipContent>
           </Tooltip>
         </div>
+      </form>
     </div>
+  );
 }
