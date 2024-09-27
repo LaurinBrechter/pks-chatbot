@@ -1,11 +1,12 @@
 import { Chat } from "../types";
 import {
+  BotCard,
   BotMessage,
   SpinnerMessage,
   UserMessage,
 } from "@/components/stocks/message";
 import { nanoid, sleep } from "@/lib/utils";
-import { streamText } from "ai";
+import { streamText, tool } from "ai";
 import {
   createAI,
   createStreamableUI,
@@ -15,6 +16,11 @@ import {
 } from "ai/rsc";
 import { openai } from "@ai-sdk/openai";
 import { saveChat } from "@/app/actions";
+
+import { z } from "zod";
+import sqlite3 from "sqlite3";
+import { open, Database } from "sqlite";
+
 
 export type Message = {
   role: "user" | "assistant" | "system" | "function" | "data" | "tool";
@@ -45,6 +51,11 @@ async function submitUserMessage(content: string) {
 
   // await rateLimit()
 
+  let db = await open({
+    filename: "./data/pks.db", // Specify the database file path
+    driver: sqlite3.Database, // Specify the database driver (sqlite3 in this case)
+  });
+
   const aiState = getMutableAIState();
 
   aiState.update({
@@ -59,7 +70,7 @@ async function submitUserMessage(content: string) {
     ],
   });
 
-  const history = aiState.get().messages.map((message) => ({
+  const history = aiState.get().messages.map((message: Message) => ({
     role: message.role,
     content: message.content,
   }));
@@ -72,30 +83,83 @@ async function submitUserMessage(content: string) {
   (async () => {
     try {
       const result = await streamText({
-        model: openai('gpt-4-turbo'),
+        model: openai("gpt-4o-mini"),
         temperature: 0,
         system: `\
-      You are a friendly assistant that helps the user with booking flights to destinations that are based on a list of books. You can you give travel recommendations based on the books, and will continue to help the user book a flight to their destination.
-  
-      The user's current location is San Francisco, CA, so the departure city will be San Francisco and airport will be San Francisco International Airport (SFO). The user would like to book the flight out on May 12, 2024.
+      You are a friendly assistant that helps the user obtain more information about German police reports. The table is named 'pks' and has the following schema:
+        {
+        'name': 'label',
+        'type': 'string',
+        'description': 'Type of crime'
+    },
+    {
+        'name': 'state',
+        'type': 'string',
+        'description': 'state where the type of crimes were committed'
+    },
+    {
+      'name': 'year',
+      'type': 'integer',
+      'description': 'Year of the crime'
+    },
+    {
+        'name': 'count',
+        'type': 'integer',
+        'description': 'Number of crimes in the given year and state'
+    }
 
-      List United Airlines flights only.
-      
-      Here's the flow: 
-        1. List holiday destinations based on a collection of books.
-        2. List flights to destination.
-        3. Choose a flight.
-        4. Choose a seat.
-        5. Choose hotel
-        6. Purchase booking.
-        7. Show boarding pass.
+        If you need to use a where clause to filter for data, make sure to first use the 'showDistinctValues' to see what distinct values there are.\
+        Then you can use the 'querySQL' tool to query the database.\
+        You can then respond the user with the results of the query.\
       `,
         messages: [...history],
+        maxSteps: 5,
+        tools: {
+          showDistinctValues: tool({
+            description:
+              "Shows the distinct values of one or more columns. This is useful for understanding the data in a table and applying filtering.",
+            parameters: z.object({
+              columns: z.array(z.string()),
+            }),
+            execute: async ({ columns }) => {
+              let distinct_values = await Promise.all(
+                columns.map(async (column) => {
+                  let q = `SELECT DISTINCT ${column} FROM pks`;
+                  console.log(q);
+                  return {
+                    column: column,
+                    values: await db.all(q),
+                  };
+                })
+              );
+              console.log(distinct_values);
+              return distinct_values;
+            },
+          }),
+          querySQL: tool({
+            description: "Query the SQL database",
+            parameters: z.object({
+              query: z.string(),
+            }),
+            execute: async ({ query }) => {
+              console.log(query);
+              return await db.all(query);
+            },
+          }),
+          
+        },
       });
 
       let textContent = "";
       spinnerStream.done(null);
 
+      let newMessage = {
+        id: nanoid(),
+        role: "assistant",
+        content: "",
+      };
+
+      const msgId = nanoid();
       for await (const delta of result.fullStream) {
         const { type } = delta;
 
@@ -103,21 +167,87 @@ async function submitUserMessage(content: string) {
           const { textDelta } = delta;
 
           textContent += textDelta;
+          newMessage.content = textContent;
           messageStream.update(<BotMessage content={textContent} />);
-
-          aiState.update({
+            aiState.update({
             ...aiState.get(),
             messages: [
-              ...aiState.get().messages,
+              ...aiState.get().messages.filter((message: Message) => message.id !== msgId),
               {
-                id: nanoid(),
-                role: "assistant",
-                content: textContent,
+              id: msgId,
+              role: "assistant",
+              content: textContent,
               },
             ],
-          });
+            });
         } else if (type === "tool-call") {
           const { toolName, args } = delta;
+
+          if (toolName === "showDistinctValues") {
+            const { columns } = args;
+            
+            uiStream.append(
+              <BotCard>
+                {columns}
+              </BotCard>
+            )
+
+            aiState.done({
+              ...aiState.get(),
+              interactions: [],
+              messages: [
+                ...aiState.get().messages,
+                {
+                  id: nanoid(),
+                  role: 'assistant',
+                  content: `Here's a list of the distinct values of the column ${columns.join(', ')}.`,
+                  display: {
+                    name: 'showDistinctValues',
+                    props: {
+                      columns
+                    }
+                  }
+                }
+              ]
+            })
+
+          } else if (toolName == "querySQL") {
+            const { query } = args;
+
+            const result = await db.all(query);
+
+            uiStream.append(
+              <BotCard>
+                {
+                  query
+                }
+                {
+                  JSON.stringify(result, null, 2)
+                }
+              </BotCard>
+            )
+
+            console.log(aiState.get());
+
+            aiState.done({
+              ...aiState.get(),
+              interactions: [],
+              messages: [
+                ...aiState.get().messages,
+                {
+                  id: nanoid(),
+                  role: 'assistant',
+                  content: `Here's the result of the query: ${query}.`,
+                  display: {
+                    name: 'querySQL',
+                    props: {
+                      query
+                    }
+                  }
+                }
+              ]
+            })
+          }
         }
       }
 
@@ -159,12 +289,12 @@ export const AI = createAI<AIState, UIState>({
     // if (session && session.user) {
     const aiState = getAIState();
 
-      // if (aiState) {
+    // if (aiState) {
     const uiState = getUIStateFromAIState(aiState);
     return uiState;
     // }
     // } else {
-      // return;
+    // return;
     // }
   },
   onSetAIState: async ({ state }) => {

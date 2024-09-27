@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { spinner } from './spinner'
 import { StreamableValue } from 'ai/rsc'
 import { useStreamableText } from '@/lib/hooks/use-streamable-text'
+import { Card, CardContent } from '../ui/card'
 
 // Different types of message bubbles.
 
@@ -65,7 +66,7 @@ export function BotCard({
         {/* <img className="size-6" src="/images/gemini.png" alt="gemini logo" /> */}
         <IconGemini />
       </div>
-      <div className="ml-4 flex-1 pl-2">{children}</div>
+      <Card className="ml-4 flex-1 pl-2"><CardContent>{children}</CardContent></Card>
     </div>
   )
 }
