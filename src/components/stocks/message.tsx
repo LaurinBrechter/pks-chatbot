@@ -66,7 +66,7 @@ export function BotCard({
         {/* <img className="size-6" src="/images/gemini.png" alt="gemini logo" /> */}
         <IconGemini />
       </div>
-      <Card className="ml-4 flex-1 pl-2"><CardContent>{children}</CardContent></Card>
+      <div className="ml-4 flex-1 pl-2">{children}</div>
     </div>
   )
 }

@@ -20,6 +20,8 @@ import { saveChat } from "@/app/actions";
 import { z } from "zod";
 import sqlite3 from "sqlite3";
 import { open, Database } from "sqlite";
+import { SimpleBar } from "@/components/SimpleBar";
+import QueryResults from "@/components/QueryResults";
 
 
 export type Message = {
@@ -80,6 +82,8 @@ async function submitUserMessage(content: string) {
   const messageStream = createStreamableUI(null);
   const uiStream = createStreamableUI();
 
+  console.log('history', history);
+
   (async () => {
     try {
       const result = await streamText({
@@ -111,9 +115,10 @@ async function submitUserMessage(content: string) {
         If you need to use a where clause to filter for data, make sure to first use the 'showDistinctValues' to see what distinct values there are.\
         Then you can use the 'querySQL' tool to query the database.\
         You can then respond the user with the results of the query.\
+        if the user asks for a visualization, you should use the 'plotResultsBar' tool to plot the results as a bar chart.\
       `,
         messages: [...history],
-        maxSteps: 5,
+        maxSteps: 10,
         tools: {
           showDistinctValues: tool({
             description:
@@ -140,13 +145,30 @@ async function submitUserMessage(content: string) {
             description: "Query the SQL database",
             parameters: z.object({
               query: z.string(),
+              visualize: z.boolean(),
             }),
             execute: async ({ query }) => {
               console.log(query);
               return await db.all(query);
             },
           }),
-          
+          plotResultsBar: tool({
+            description: "Plot the results of the query as a bar chart",
+            parameters: z.object({
+              x: z.array(z.string()),
+              y: z.array(z.number()),
+            }),
+            execute: async ({ x, y }) => {
+              return 'Plotted the results as a bar chart';
+            }
+          }),
+          // plotResultsLine: tool({
+          //   description: "Plot the results of the query as a line chart",
+          //   parameters: z.object({
+          //     x: z.array(z.any()),
+          //     y: z.array(z.number()),
+          //   })
+          // })
         },
       });
 
@@ -183,8 +205,21 @@ async function submitUserMessage(content: string) {
         } else if (type === "tool-call") {
           const { toolName, args } = delta;
 
+          console.log(toolName, args);
+
           if (toolName === "showDistinctValues") {
             const { columns } = args;
+
+            const distinctValues = await Promise.all(
+              columns.map(async (column) => {
+                let q = `SELECT DISTINCT ${column} FROM pks`;
+                console.log(q);
+                return {
+                  column: column,
+                  values: await db.all(q),
+                };
+              })
+            );
             
             uiStream.append(
               <BotCard>
@@ -200,7 +235,7 @@ async function submitUserMessage(content: string) {
                 {
                   id: nanoid(),
                   role: 'assistant',
-                  content: `Here's a list of the distinct values of the column ${columns.join(', ')}.`,
+                  content: `Here's a list of the distinct values of the column ${columns.join(', ')}, ${JSON.stringify(distinctValues, null, 2)}`,
                   display: {
                     name: 'showDistinctValues',
                     props: {
@@ -212,22 +247,15 @@ async function submitUserMessage(content: string) {
             })
 
           } else if (toolName == "querySQL") {
-            const { query } = args;
+            const { query, visualize } = args;
 
             const result = await db.all(query);
 
             uiStream.append(
               <BotCard>
-                {
-                  query
-                }
-                {
-                  JSON.stringify(result, null, 2)
-                }
+                <QueryResults data={result} query={query} />
               </BotCard>
             )
-
-            console.log(aiState.get());
 
             aiState.done({
               ...aiState.get(),
@@ -237,17 +265,52 @@ async function submitUserMessage(content: string) {
                 {
                   id: nanoid(),
                   role: 'assistant',
-                  content: `Here's the result of the query: ${query}.`,
+                  content: `Here's the result of the query: ${query}., ${JSON.stringify(result, null, 2)}, the user has been shown the results of the query.`,
                   display: {
                     name: 'querySQL',
                     props: {
-                      query
+                      query,
+                      visualize
                     }
                   }
                 }
               ]
             })
-          }
+          } else if (toolName == "plotResultsBar") {
+            let {x, y} = args;
+
+            console.log(x, y);
+
+            uiStream.append(
+              <SimpleBar x={x} y={y} />
+            )
+
+            aiState.done({
+              ...aiState.get(),
+              interactions: [],
+              messages: [
+                ...aiState.get().messages,
+                {
+                  id: nanoid(),
+                  role: 'assistant',
+                  content: `The user has been shown a bar chart with the following x and y values:
+                  x: ${x}
+                  y: ${y}`,
+                  display: {
+                    name: 'querySQL',
+                    props: {
+                      x: x,
+                      y: y
+                    }
+                  }
+                }
+              ]
+            })
+
+          } 
+          // else if (toolName == "plotResultsLine") {
+            
+          // }
         }
       }
 
