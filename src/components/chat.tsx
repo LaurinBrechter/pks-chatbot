@@ -30,7 +30,7 @@ export function Chat({ id, className }: ChatProps) {
 
   return (
     <div
-      className="group w-full overflow-auto pl-0 peer-[[data-state=open]]:lg:pl-[250px] peer-[[data-state=open]]:xl:pl-[300px]"
+      className="w-full overflow-auto pl-0"
       ref={scrollRef}
     >
       <Header />

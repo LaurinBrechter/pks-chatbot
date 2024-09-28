@@ -3,7 +3,7 @@ import { Chat } from '@/components/chat'
 import { AI } from '@/lib/chat/actions'
 
 export const metadata = {
-  title: 'Next.js AI Chatbot'
+  title: 'PKS interactive'
 }
 
 export default async function IndexPage() {

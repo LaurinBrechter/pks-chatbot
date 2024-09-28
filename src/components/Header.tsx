@@ -13,7 +13,7 @@ import { BadgeInfo } from "lucide-react";
 
 export default function Header() {
   return (
-    <header className="w-full h-20 border p-5 flex items-center justify-between">
+    <header className="w-full h-16 border p-5 flex items-center justify-between sticky top-0 z-10 bg-white">
       <h1>PKS Interactive</h1>
       <Sheet>
         <SheetTrigger asChild>

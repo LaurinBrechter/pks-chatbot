@@ -54,15 +54,15 @@ export default function RootLayout({ children }: RootLayoutProps) {
           enableSystem
           disableTransitionOnChange
         > */}
-        <div className="flex flex-col min-h-screen">
+        <main className="flex flex-col min-h-screen">
           <TooltipProvider>
-            <main className="flex flex-col flex-1">
+            {/* <main className="flex flex-col flex-1"> */}
               <div className="relative flex h-[calc(100vh_-_theme(spacing.16))] overflow-hidden">
                 {children}
               </div>
-            </main>
+            {/* </main> */}
           </TooltipProvider>
-        </div>
+        </main>
         <TailwindIndicator />
         {/* </Providers> */}
         {/* <Analytics /> */}
