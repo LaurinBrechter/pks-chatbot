@@ -36,15 +36,15 @@ export function ChatPanel({
 
   const exampleMessages = [
     {
-      heading: 'List flights flying from',
-      subheading: 'San Francisco to Rome today',
-      message: `List flights flying from San Francisco to Rome today`
+      heading: 'Car Theft in Hamburg',
+      subheading: 'Yearly number of car thefts in Hamburg',
+      message: `How many car thefts were there in Hamburg?`
     },
-    {
-      heading: 'What is the status',
-      subheading: 'of flight BA142?',
-      message: 'What is the status of flight BA142?'
-    }
+    // {
+    //   heading: 'What is the status',
+    //   subheading: 'of flight BA142?',
+    //   message: 'What is the status of flight BA142?'
+    // }
   ]
 
   return (
