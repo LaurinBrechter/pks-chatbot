@@ -118,6 +118,7 @@ async function submitUserMessage(content: string) {
         If you need to use a where clause to filter for data, make sure to first use the 'showDistinctValues' to see what distinct values there are.\
         Then you can use the 'querySQL' tool to query the database.\
         You can then respond the user with the results of the query.\
+        If the user wants to plot the results, they can use the 'plotResultsBar' tool.\
         `,
         messages: [...history],
         maxSteps: 10,
@@ -151,16 +152,17 @@ async function submitUserMessage(content: string) {
               return await db.all(query);
             },
           }),
-          // plotResultsBar: tool({
-          //   description: "Plot the results of the query as a bar chart",
-          //   parameters: z.object({
-          //     x: z.array(z.string()),
-          //     y: z.array(z.number()),
-          //   }),
-          //   execute: async ({ x, y }) => {
-          //     return 'Plotted the results as a bar chart';
-          //   }
-          // }),
+          plotResultsBar: tool({
+            description: "Plot the results of the query as a bar chart",
+            parameters: z.object({
+              x: z.array(z.string()),
+              y: z.array(z.number()),
+            }),
+            execute: async ({ x, y }) => {
+              console.log('plotting bar', x, y);
+              return 'Plotted the results as a bar chart';
+            }
+          }),
           // plotResultsLine: tool({
           //   description: "Plot the results of the query as a line chart",
           //   parameters: z.object({
@@ -191,16 +193,6 @@ async function submitUserMessage(content: string) {
           if (toolName === "showDistinctValues") {
             const { columns } = args;
 
-            const distinctValues = await Promise.all(
-              columns.map(async (column) => {
-                let q = `SELECT DISTINCT ${column} FROM pks`;
-                return {
-                  column: column,
-                  values: await db.all(q),
-                };
-              })
-            );
-
             uiStream.append(<BotCard>{columns}</BotCard>);
 
           } else if (toolName == "querySQL") {
@@ -214,12 +206,12 @@ async function submitUserMessage(content: string) {
               </BotCard>
             );
           } 
-          // else if (toolName == "plotResultsBar") {
-          //   let { x, y } = args;
+          else if (toolName == "plotResultsBar") {
+            let { x, y } = args;
 
-          //   uiStream.append(<SimpleBar x={x} y={y} />);
+            uiStream.append(<SimpleBar x={x} y={y} chartTitle="hello" />);
 
-          // }
+          }
           // else if (toolName == "plotResultsLine") {
 
           // }
