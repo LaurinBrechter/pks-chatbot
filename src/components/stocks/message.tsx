@@ -56,7 +56,7 @@ export function BotCard({
   showAvatar?: boolean
 }) {
   return (
-    <div className="group relative flex items-start md:-ml-12">
+    <div className="group relative flex items-start md:-ml-12 mt-4">
       <div
         className={cn(
           'bg-background flex size-[25px] shrink-0 select-none items-center justify-center rounded-lg border shadow-sm',

@@ -6,11 +6,16 @@ export async function saveChat(chat: Chat) {
     // Convert chat object to JSON string
     const chatJson = JSON.stringify(chat, null, 2);
 
-    // Define the file path where the chat will be saved
-    const filePath = "./chat.json";
+    const fileName = `chat-${chat.id}.json`;
+
+    // create the file if it doesn't exist
+    let handle = await fs.open(fileName, "w");
+    
 
     // Write the JSON string to the file
-    await fs.writeFile(filePath, chatJson, "utf8");
+    await fs.writeFile(fileName, chatJson, "utf8");
+
+    await handle.close();
 
     // console.log("Chat saved successfully.");
   } catch (error) {

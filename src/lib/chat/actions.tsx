@@ -22,7 +22,7 @@ import sqlite3 from "sqlite3";
 import { open, Database } from "sqlite";
 import { SimpleBar } from "@/components/SimpleBar";
 import QueryResults from "@/components/QueryResults";
-
+import { text } from "stream/consumers";
 
 export type Message = {
   role: "user" | "assistant" | "system" | "function" | "data" | "tool";
@@ -59,6 +59,8 @@ async function submitUserMessage(content: string) {
   });
 
   const aiState = getMutableAIState();
+  console.log("history", aiState.get().messages);
+
 
   aiState.update({
     ...aiState.get(),
@@ -77,12 +79,13 @@ async function submitUserMessage(content: string) {
     content: message.content,
   }));
 
+
   const textStream = createStreamableValue("");
   const spinnerStream = createStreamableUI(<SpinnerMessage />);
   const messageStream = createStreamableUI(null);
   const uiStream = createStreamableUI();
 
-  console.log('history', history);
+  // console.log('history', history);
 
   (async () => {
     try {
@@ -115,8 +118,7 @@ async function submitUserMessage(content: string) {
         If you need to use a where clause to filter for data, make sure to first use the 'showDistinctValues' to see what distinct values there are.\
         Then you can use the 'querySQL' tool to query the database.\
         You can then respond the user with the results of the query.\
-        if the user asks for a visualization, you should use the 'plotResultsBar' tool to plot the results as a bar chart.\
-      `,
+        `,
         messages: [...history],
         maxSteps: 10,
         tools: {
@@ -130,14 +132,12 @@ async function submitUserMessage(content: string) {
               let distinct_values = await Promise.all(
                 columns.map(async (column) => {
                   let q = `SELECT DISTINCT ${column} FROM pks`;
-                  console.log(q);
                   return {
                     column: column,
                     values: await db.all(q),
                   };
                 })
               );
-              console.log(distinct_values);
               return distinct_values;
             },
           }),
@@ -148,20 +148,19 @@ async function submitUserMessage(content: string) {
               visualize: z.boolean(),
             }),
             execute: async ({ query }) => {
-              console.log(query);
               return await db.all(query);
             },
           }),
-          plotResultsBar: tool({
-            description: "Plot the results of the query as a bar chart",
-            parameters: z.object({
-              x: z.array(z.string()),
-              y: z.array(z.number()),
-            }),
-            execute: async ({ x, y }) => {
-              return 'Plotted the results as a bar chart';
-            }
-          }),
+          // plotResultsBar: tool({
+          //   description: "Plot the results of the query as a bar chart",
+          //   parameters: z.object({
+          //     x: z.array(z.string()),
+          //     y: z.array(z.number()),
+          //   }),
+          //   execute: async ({ x, y }) => {
+          //     return 'Plotted the results as a bar chart';
+          //   }
+          // }),
           // plotResultsLine: tool({
           //   description: "Plot the results of the query as a line chart",
           //   parameters: z.object({
@@ -175,11 +174,7 @@ async function submitUserMessage(content: string) {
       let textContent = "";
       spinnerStream.done(null);
 
-      let newMessage = {
-        id: nanoid(),
-        role: "assistant",
-        content: "",
-      };
+
 
       const msgId = nanoid();
       for await (const delta of result.fullStream) {
@@ -187,25 +182,11 @@ async function submitUserMessage(content: string) {
 
         if (type === "text-delta") {
           const { textDelta } = delta;
-
           textContent += textDelta;
-          newMessage.content = textContent;
           messageStream.update(<BotMessage content={textContent} />);
-            aiState.update({
-            ...aiState.get(),
-            messages: [
-              ...aiState.get().messages.filter((message: Message) => message.id !== msgId),
-              {
-              id: msgId,
-              role: "assistant",
-              content: textContent,
-              },
-            ],
-            });
-        } else if (type === "tool-call") {
-          const { toolName, args } = delta;
 
-          console.log(toolName, args);
+        } else if (type === "tool-call") {
+          const { toolName, args, toolCallId } = delta;
 
           if (toolName === "showDistinctValues") {
             const { columns } = args;
@@ -213,38 +194,14 @@ async function submitUserMessage(content: string) {
             const distinctValues = await Promise.all(
               columns.map(async (column) => {
                 let q = `SELECT DISTINCT ${column} FROM pks`;
-                console.log(q);
                 return {
                   column: column,
                   values: await db.all(q),
                 };
               })
             );
-            
-            uiStream.append(
-              <BotCard>
-                {columns}
-              </BotCard>
-            )
 
-            aiState.done({
-              ...aiState.get(),
-              interactions: [],
-              messages: [
-                ...aiState.get().messages,
-                {
-                  id: nanoid(),
-                  role: 'assistant',
-                  content: `Here's a list of the distinct values of the column ${columns.join(', ')}, ${JSON.stringify(distinctValues, null, 2)}`,
-                  display: {
-                    name: 'showDistinctValues',
-                    props: {
-                      columns
-                    }
-                  }
-                }
-              ]
-            })
+            uiStream.append(<BotCard>{columns}</BotCard>);
 
           } else if (toolName == "querySQL") {
             const { query, visualize } = args;
@@ -255,61 +212,16 @@ async function submitUserMessage(content: string) {
               <BotCard>
                 <QueryResults data={result} query={query} />
               </BotCard>
-            )
-
-            aiState.done({
-              ...aiState.get(),
-              interactions: [],
-              messages: [
-                ...aiState.get().messages,
-                {
-                  id: nanoid(),
-                  role: 'assistant',
-                  content: `Here's the result of the query: ${query}., ${JSON.stringify(result, null, 2)}, the user has been shown the results of the query.`,
-                  display: {
-                    name: 'querySQL',
-                    props: {
-                      query,
-                      visualize
-                    }
-                  }
-                }
-              ]
-            })
-          } else if (toolName == "plotResultsBar") {
-            let {x, y} = args;
-
-            console.log(x, y);
-
-            uiStream.append(
-              <SimpleBar x={x} y={y} />
-            )
-
-            aiState.done({
-              ...aiState.get(),
-              interactions: [],
-              messages: [
-                ...aiState.get().messages,
-                {
-                  id: nanoid(),
-                  role: 'assistant',
-                  content: `The user has been shown a bar chart with the following x and y values:
-                  x: ${x}
-                  y: ${y}`,
-                  display: {
-                    name: 'querySQL',
-                    props: {
-                      x: x,
-                      y: y
-                    }
-                  }
-                }
-              ]
-            })
-
+            );
           } 
+          // else if (toolName == "plotResultsBar") {
+          //   let { x, y } = args;
+
+          //   uiStream.append(<SimpleBar x={x} y={y} />);
+
+          // }
           // else if (toolName == "plotResultsLine") {
-            
+
           // }
         }
       }
@@ -317,7 +229,16 @@ async function submitUserMessage(content: string) {
       uiStream.done();
       textStream.done();
       messageStream.done();
+
+      let rm = await result.responseMessages;
+
+      aiState.done({
+        ...aiState.get(),
+        messages: [...aiState.get().messages, ...rm],
+      })
+
     } catch (e) {
+
       console.error(e);
 
       const error = new Error(
