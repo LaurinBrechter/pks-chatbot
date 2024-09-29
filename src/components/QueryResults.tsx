@@ -1,5 +1,6 @@
 'use client'
 
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { createTable, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import React from "react";
@@ -31,37 +32,45 @@ export default function QueryResults({ data, query }: { data: any[], query: stri
     });
     
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Query Results</CardTitle>
-                <CardDescription>{query}</CardDescription>
-            </CardHeader>
-            <CardContent>
-                {/* <pre>{JSON.stringify(data, null, 2)}</pre> */}
-                <Table>
-                <TableHeader>
-                    {table.getHeaderGroups().map(headerGroup => (
-                        <TableRow key={headerGroup.id}>
-                            {headerGroup.headers.map(header => (
-                                <TableHead key={header.id}>{header.isPlaceholder ? null : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                  )}</TableHead>
-                            ))}
-                        </TableRow>
-                    ))}
-                </TableHeader>
-                <TableBody>
-                    {table.getRowModel().rows.map(row => (
-                        <TableRow key={row.id}>
-                            {row.getVisibleCells().map(cell => (
-                                <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                            ))}
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-            </CardContent>
-        </Card>
+
+        <Accordion type="single" collapsible>
+            <AccordionItem value="query-results">
+                <AccordionTrigger className="pt-0">Query Results</AccordionTrigger>
+                <AccordionContent>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Query Results</CardTitle>
+                            <CardDescription>{query}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {/* <pre>{JSON.stringify(data, null, 2)}</pre> */}
+                            <Table>
+                                <TableHeader>
+                                    {table.getHeaderGroups().map(headerGroup => (
+                                        <TableRow key={headerGroup.id}>
+                                            {headerGroup.headers.map(header => (
+                                                <TableHead key={header.id}>{header.isPlaceholder ? null : flexRender(
+                                                    header.column.columnDef.header,
+                                                    header.getContext()
+                                                )}</TableHead>
+                                            ))}
+                                        </TableRow>
+                                    ))}
+                                </TableHeader>
+                                <TableBody>
+                                    {table.getRowModel().rows.map(row => (
+                                        <TableRow key={row.id}>
+                                            {row.getVisibleCells().map(cell => (
+                                                <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                                            ))}
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
     )
 }
