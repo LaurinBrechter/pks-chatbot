@@ -7,7 +7,9 @@ import { cn } from '@/lib/utils'
 import { spinner } from './spinner'
 import { StreamableValue } from 'ai/rsc'
 import { useStreamableText } from '@/lib/hooks/use-streamable-text'
-import { Card, CardContent } from '../ui/card'
+import { remark } from 'remark';
+import html from 'remark-html';
+
 
 // Different types of message bubbles.
 
@@ -34,6 +36,9 @@ export function BotMessage({
   const text = useStreamableText(content)
 
 
+  const processedContent = remark().use(html).processSync(text).toString()
+  const contentHTML = processedContent.toString();
+
 
   return (
     <div className={cn('group relative flex items-start md:-ml-12', className)}>
@@ -41,8 +46,9 @@ export function BotMessage({
         {/* <img className="size-6" src="/images/gemini.png" alt="gemini logo" /> */}
         <IconGemini />
       </div>
-      <div className="ml-4 flex-1 space-y-2 overflow-hidden px-1">
-       {text}
+      <div className="ml-4 flex-1 space-y-2 overflow-hidden px-1" dangerouslySetInnerHTML={
+        { __html: contentHTML }
+      }>
       </div>
     </div>
   )

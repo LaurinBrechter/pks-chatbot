@@ -7,9 +7,24 @@ h1 {
   @apply text-3xl sm:text-2xl font-semibold
 }
 
+ul {
+  @apply list-disc list-inside
+}
+
+ol {
+  @apply list-decimal list-inside
+}
+
+
 
 @layer base {
   :root {
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
 

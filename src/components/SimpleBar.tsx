@@ -16,23 +16,18 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 export const description = "A bar chart"
-// const chartData = [
-//   { month: "January", desktop: 186 },
-//   { month: "February", desktop: 305 },
-//   { month: "March", desktop: 237 },
-//   { month: "April", desktop: 73 },
-//   { month: "May", desktop: 209 },
-//   { month: "June", desktop: 214 },
-// ]
-const chartConfig = {
-  desktop: {
-    label: "Desktop",
-    color: "hsl(var(--chart-1))",
-  },
-} satisfies ChartConfig
+
 export function SimpleBar({x, y, chartTitle}: {x: string[], y: number[], chartTitle: string}) {
 
   let chartData = x.map((x, index) => ({ 'x':x, 'y': y[index] }))
+
+
+  const chartConfig = {
+    x: {
+      label: "x",
+      color: "hsl(var(--chart-2))",
+    },
+  } satisfies ChartConfig
 
   return (
     <Card>
@@ -55,7 +50,7 @@ export function SimpleBar({x, y, chartTitle}: {x: string[], y: number[], chartTi
               cursor={false}
               content={<ChartTooltipContent hideLabel />}
             />
-            <Bar dataKey="y" fill="var(--color-desktop)" radius={8} />
+            <Bar dataKey="y" fill="var(--color-x)" radius={8} />
           </BarChart>
         </ChartContainer>
       </CardContent>

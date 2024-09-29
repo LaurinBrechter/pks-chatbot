@@ -22,7 +22,6 @@ import sqlite3 from "sqlite3";
 import { open, Database } from "sqlite";
 import { SimpleBar } from "@/components/SimpleBar";
 import QueryResults from "@/components/QueryResults";
-import { text } from "stream/consumers";
 
 export type Message = {
   role: "user" | "assistant" | "system" | "function" | "data" | "tool";
@@ -61,7 +60,6 @@ async function submitUserMessage(content: string) {
   const aiState = getMutableAIState();
   console.log("history", aiState.get().messages);
 
-
   aiState.update({
     ...aiState.get(),
     messages: [
@@ -78,7 +76,6 @@ async function submitUserMessage(content: string) {
     role: message.role,
     content: message.content,
   }));
-
 
   const textStream = createStreamableValue("");
   const spinnerStream = createStreamableUI(<SpinnerMessage />);
@@ -119,6 +116,7 @@ async function submitUserMessage(content: string) {
         Then you can use the 'querySQL' tool to query the database.\
         You can then respond the user with the results of the query.\
         If the user wants to plot the results, they can use the 'plotResultsBar' tool.\
+        Do NOT print the results of the query, the user will be able to see them via the UI already.\
         `,
         messages: [...history],
         maxSteps: 10,
@@ -159,9 +157,9 @@ async function submitUserMessage(content: string) {
               y: z.array(z.number()),
             }),
             execute: async ({ x, y }) => {
-              console.log('plotting bar', x, y);
-              return 'Plotted the results as a bar chart';
-            }
+              console.log("plotting bar", x, y);
+              return "Plotted the results as a bar chart";
+            },
           }),
           // plotResultsLine: tool({
           //   description: "Plot the results of the query as a line chart",
@@ -176,8 +174,6 @@ async function submitUserMessage(content: string) {
       let textContent = "";
       spinnerStream.done(null);
 
-
-
       const msgId = nanoid();
       for await (const delta of result.fullStream) {
         const { type } = delta;
@@ -186,7 +182,6 @@ async function submitUserMessage(content: string) {
           const { textDelta } = delta;
           textContent += textDelta;
           messageStream.update(<BotMessage content={textContent} />);
-
         } else if (type === "tool-call") {
           const { toolName, args, toolCallId } = delta;
 
@@ -194,7 +189,6 @@ async function submitUserMessage(content: string) {
             const { columns } = args;
 
             uiStream.append(<BotCard>{columns}</BotCard>);
-
           } else if (toolName == "querySQL") {
             const { query, visualize } = args;
 
@@ -205,12 +199,14 @@ async function submitUserMessage(content: string) {
                 <QueryResults data={result} query={query} />
               </BotCard>
             );
-          } 
-          else if (toolName == "plotResultsBar") {
+          } else if (toolName == "plotResultsBar") {
             let { x, y } = args;
 
-            uiStream.append(<SimpleBar x={x} y={y} chartTitle="hello" />);
-
+            uiStream.append(
+              <BotCard>
+                <SimpleBar x={x} y={y} chartTitle="hello" />
+              </BotCard>
+            );
           }
           // else if (toolName == "plotResultsLine") {
 
@@ -227,10 +223,8 @@ async function submitUserMessage(content: string) {
       aiState.done({
         ...aiState.get(),
         messages: [...aiState.get().messages, ...rm],
-      })
-
+      });
     } catch (e) {
-
       console.error(e);
 
       const error = new Error(
