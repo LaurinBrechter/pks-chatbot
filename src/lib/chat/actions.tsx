@@ -22,6 +22,7 @@ import sqlite3 from "sqlite3";
 import { open, Database } from "sqlite";
 import { SimpleBar } from "@/components/SimpleBar";
 import QueryResults from "@/components/QueryResults";
+import { SimpleLine } from "@/components/SimpleLine";
 
 export type Message = {
   role: "user" | "assistant" | "system" | "function" | "data" | "tool";
@@ -116,7 +117,7 @@ async function submitUserMessage(content: string) {
         Then you can use the 'querySQL' tool to query the database.\
         You can then respond the user with the results of the query.\
         If the user wants to plot the results, they can use the 'plotResultsBar' tool.\
-        Do NOT print the results of the query, the user will be able to see them via the UI already.\
+        You MUST NOT output the results of the query directly to the user.\
         `,
         messages: [...history],
         maxSteps: 10,
@@ -151,7 +152,7 @@ async function submitUserMessage(content: string) {
             },
           }),
           plotResultsBar: tool({
-            description: "Plot the results of the query as a bar chart",
+            description: "Plot the results of the query as a bar chart. This should be used for categorical data.",
             parameters: z.object({
               x: z.array(z.string()),
               y: z.array(z.number()),
@@ -161,13 +162,17 @@ async function submitUserMessage(content: string) {
               return "Plotted the results as a bar chart";
             },
           }),
-          // plotResultsLine: tool({
-          //   description: "Plot the results of the query as a line chart",
-          //   parameters: z.object({
-          //     x: z.array(z.any()),
-          //     y: z.array(z.number()),
-          //   })
-          // })
+          plotResultsLine: tool({
+            description: "Plot the results of the query as a line chart. This should be used for numerical data or when the x axis is time.",
+            parameters: z.object({
+              x: z.array(z.string()),
+              y: z.array(z.number()),
+            }),
+            execute: async ({ x, y }) => {
+              console.log("plotting line", x, y);
+              return "Plotted the results as a line chart";
+            },
+          })
         },
       });
 
@@ -188,9 +193,11 @@ async function submitUserMessage(content: string) {
           if (toolName === "showDistinctValues") {
             const { columns } = args;
 
-            uiStream.append(<BotCard>{columns}</BotCard>);
+            uiStream.append(<BotCard>
+              Looking at unique Values ...
+            </BotCard>);
           } else if (toolName == "querySQL") {
-            const { query, visualize } = args;
+            const { query } = args;
 
             const result = await db.all(query);
 
@@ -205,6 +212,14 @@ async function submitUserMessage(content: string) {
             uiStream.append(
               <BotCard>
                 <SimpleBar x={x} y={y} chartTitle="hello" />
+              </BotCard>
+            );
+          } else if (toolName == "plotResultsLine") {
+            let { x, y } = args;
+
+            uiStream.append(
+              <BotCard>
+                <SimpleLine x={x} y={y} chartTitle="hello" />
               </BotCard>
             );
           }

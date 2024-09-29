@@ -27,6 +27,11 @@ export function EmptyScreen() {
           with function calling to mix both text with generative UI responses
           from ChatGPT. When a user has a questions, it creates a SQL query, receives a response from the database, and then generates a UI response.
         </p>
+        <p className="leading-normal text-zinc-900">
+          The data used is the <ExternalLink href='https://www.bka.de/EN/CurrentInformation/Statistics/PoliceCrimeStatistics/policecrimestatistics_node.html'>
+          German Police Crime Statistics
+          </ExternalLink> which is published every year by the Bundeskriminalamt (BKA) and contains data on crimes reported to the police in Germany.
+        </p>
       </div>
     </div>
   )
