@@ -1,3 +1,5 @@
+"use server";
+
 import { Chat } from "../types";
 import {
   BotCard,
@@ -48,6 +50,22 @@ export type UIState = {
   attachments?: React.ReactNode;
 }[];
 
+async function handleUpload(formData: FormData) {
+  "use server";
+
+  const aiStateJson = await formData.get("aiState").text();
+
+  const aiStateNew = JSON.parse(aiStateJson);
+  const aiState = getMutableAIState();
+
+  aiState.update(aiStateNew);
+  aiState.done();
+
+  const uiState = getUIStateFromAIState(aiState.get());
+
+  return uiState;
+}
+
 async function submitUserMessage(content: string) {
   "use server";
 
@@ -68,7 +86,8 @@ async function submitUserMessage(content: string) {
       {
         id: nanoid(),
         role: "user",
-        content: `${aiState.get().interactions.join("\n\n")}\n\n${content}`,
+        // content: `${aiState.get().interactions.join("\n\n")}\n\n${content}`,
+        content: content,
       },
     ],
   });
@@ -152,7 +171,8 @@ async function submitUserMessage(content: string) {
             },
           }),
           plotResultsBar: tool({
-            description: "Plot the results of the query as a bar chart. This should be used for categorical data.",
+            description:
+              "Plot the results of the query as a bar chart. This should be used for categorical data.",
             parameters: z.object({
               x: z.array(z.string()),
               y: z.array(z.number()),
@@ -163,7 +183,8 @@ async function submitUserMessage(content: string) {
             },
           }),
           plotResultsLine: tool({
-            description: "Plot the results of the query as a line chart. This should be used for numerical data or when the x axis is time.",
+            description:
+              "Plot the results of the query as a line chart. This should be used for numerical data or when the x axis is time.",
             parameters: z.object({
               x: z.array(z.string()),
               y: z.array(z.number()),
@@ -172,7 +193,7 @@ async function submitUserMessage(content: string) {
               console.log("plotting line", x, y);
               return "Plotted the results as a line chart";
             },
-          })
+          }),
         },
       });
 
@@ -193,9 +214,7 @@ async function submitUserMessage(content: string) {
           if (toolName === "showDistinctValues") {
             const { columns } = args;
 
-            uiStream.append(<BotCard>
-              Looking at unique Values ...
-            </BotCard>);
+            uiStream.append(<BotCard>Looking at unique Values ...</BotCard>);
           } else if (toolName == "querySQL") {
             const { query } = args;
 
@@ -263,6 +282,7 @@ async function submitUserMessage(content: string) {
 export const AI = createAI<AIState, UIState>({
   actions: {
     submitUserMessage,
+    handleUpload,
   },
   initialUIState: [],
   initialAIState: { chatId: nanoid(), interactions: [], messages: [] },
@@ -276,6 +296,7 @@ export const AI = createAI<AIState, UIState>({
 
     // if (aiState) {
     const uiState = getUIStateFromAIState(aiState);
+
     return uiState;
     // }
     // } else {
@@ -309,17 +330,48 @@ export const AI = createAI<AIState, UIState>({
 });
 
 export const getUIStateFromAIState = (aiState: Chat) => {
-  return aiState.messages
-    .filter((message) => message.role !== "system")
-    .map((message, index) => ({
-      id: `${aiState.chatId}-${index}`,
-      display:
-        message.role === "assistant" ? (
-          <BotMessage content={message.content} />
-        ) : message.role === "user" ? (
-          <UserMessage>{message.content}</UserMessage>
-        ) : (
-          <BotMessage content={message.content} />
-        ),
-    }));
+  const uiState = [];
+  const messages = aiState.messages.filter(
+    (message) => message.role !== "system"
+  );
+
+  for (let index = 0; index < messages.length; index++) {
+    const message = messages[index];
+    let display;
+
+    switch (message.role) {
+      case "assistant":
+        if (message.content[0].text === "") {
+          continue; // Skip this iteration if the assistant message text is empty
+        }
+        display = <BotMessage content={message.content[0].text} />;
+        break;
+      case "user":
+        display = <UserMessage>{message.content}</UserMessage>;
+        break;
+      case "tool":
+        const toolName = message.content[0].toolName;
+        const toolResult = message.content[0].result;
+
+        if (toolName === "querySQL") {
+          display = (
+            <BotCard>
+              <QueryResults data={toolResult} query={""} />
+            </BotCard>
+          );
+        }
+        break;
+      default:
+        display = <BotMessage content={message.content} />;
+    }
+
+    if (display) {
+      uiState.push({
+        id: `${aiState.chatId}-${index}`,
+        display: display,
+      });
+    }
+  }
+
+  return uiState;
 };

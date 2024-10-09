@@ -7,9 +7,14 @@ h1 {
   @apply text-3xl sm:text-2xl font-semibold
 }
 
+/* ul, ol {
+  list-style: revert;
+}
+*/
+
 ul {
   @apply list-disc list-inside
-}
+} 
 
 ol {
   @apply list-decimal list-inside
@@ -18,7 +23,15 @@ ol {
 
 
 @layer base {
+
+  /* ul, ol {
+    list-style: revert;
+  } */
+
   :root {
+
+    
+
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;

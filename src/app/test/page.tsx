@@ -6,14 +6,14 @@ import { open, Database } from "sqlite";
 
 export default async function Page() {
   let db = await open({
-    filename: "./data/pks2013.db", // Specify the database file path
+    filename: "./data/pks.db", // Specify the database file path
     driver: sqlite3.Database, // Specify the database driver (sqlite3 in this case)
   });
 
   let history = [
     {
       role: "user",
-      content: "How many cases of sexual abuse of minors were there in Hamburg?",
+      content: "How many cases of theft of firearms where there in Hamburg over the years?",
     },
   ];
 
@@ -21,9 +21,9 @@ export default async function Page() {
     model: openai("gpt-4-turbo"),
     temperature: 0,
     system: `\
-      You are a friendly assistant that helps the user obtain more information about German police reports. The table is named 'police_reports_2013' and has the following schema:
+      You are a friendly assistant that helps the user obtain more information about German police reports. The table is named 'pks' and has the following schema:
         {
-        'name': 'crime',
+        'name': 'label',
         'type': 'string',
         'description': 'Type of crime'
     },
@@ -33,15 +33,22 @@ export default async function Page() {
         'description': 'state where the type of crimes were committed'
     },
     {
-        'name': 'num_cases',
+      'name': 'year',
+      'type': 'integer',
+      'description': 'Year of the crime'
+    },
+    {
+        'name': 'count',
         'type': 'integer',
         'description': 'Number of crimes in the given year and state'
     }
 
-        Please output a SQL Query, If you need to apply a filter but don't know the values, tuse the 'showDistinctValues' tool.\
+        If you need to use a where clause to filter for data, make sure to first use the 'showDistinctValues' to see what distinct values there are.\
+        Then you can use the 'querySQL' tool to query the database.\
+        You can then respond the user with the results of the query.\
       `,
     messages: [...history],
-    maxSteps: 2,
+    maxSteps: 5,
     tools: {
       showDistinctValues: tool({
         description:
@@ -51,7 +58,7 @@ export default async function Page() {
         }),
         execute: async ({ columns }) => {
           let distinct_values = await Promise.all(columns.map(async (column) => {
-            let q = `SELECT DISTINCT ${column} FROM pks2013`;
+            let q = `SELECT DISTINCT ${column} FROM pks`;
             console.log(q);
             return {
               column: column,
@@ -62,9 +69,20 @@ export default async function Page() {
           return distinct_values;
         },
       }),
+      querySQL: tool({
+        description: "Query the SQL database",
+        parameters: z.object({
+          query: z.string(),
+        }),
+        execute: async ({ query }) => {
+          return await db.all(query);
+        }
+      })
     },
   });
 
+  const allToolCalls = steps.steps.flatMap((step) => step.toolCalls);
+  console.log(allToolCalls);
   console.log(steps);
 
   //   const allToolCalls = steps.flatMap(step => step.toolCalls);

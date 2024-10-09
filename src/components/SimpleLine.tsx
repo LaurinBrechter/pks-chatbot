@@ -32,7 +32,7 @@ export function SimpleLine({x, y, chartTitle}: {x: string[], y: number[], chartT
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{chartTitle}</CardTitle>
+        {/* <CardTitle>{chartTitle}</CardTitle> */}
         {/* <CardDescription>January - June 2024</CardDescription> */}
       </CardHeader>
       <CardContent>
